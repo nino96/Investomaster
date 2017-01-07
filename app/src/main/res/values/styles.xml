@@ -1,6 +1,11 @@
 <resources>
 
     <!-- Base application theme. -->
+
+    <!--IMPORTANT !!!!! -->
+    <!-- CHANGED FROM DarkActionBar TO NoActionBar because probably this caused a random runtime crash saying
+        failed to reolve attribute at index 6 typedvalue ... -->
+    <!-- but that makes menu disappear -->
     <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
         <!-- Customize your theme here. -->
         <item name="colorPrimary">@color/colorPrimary</item>

@@ -22,6 +22,29 @@ public class NetworkUtils {
 
     private static String QUERY_SYMBOL="GOOGL";
 
+    private static String HISTORICAL_BASE_URL = "https://www.google.com/finance/historical";
+    private static String PARAM_START_DATE = "startdate";
+    private static String PARAM_END_DATE = "enddate";
+    private static String PARAM_OUTPUT = "output";
+
+
+    public static URL buildHistoricalUrl(String query,String startdate,String enddate){
+        Uri builtUri = Uri.parse(HISTORICAL_BASE_URL).buildUpon()
+                .appendQueryParameter(PARAM_SYMBOL1,query)
+                .appendQueryParameter(PARAM_START_DATE,startdate)
+                .appendQueryParameter(PARAM_END_DATE,enddate)
+                .appendQueryParameter(PARAM_OUTPUT,"csv")
+                .build();
+
+        URL url = null;
+        try{
+            url = new URL(builtUri.toString());
+
+        }catch(MalformedURLException e){
+            e.printStackTrace();
+        }
+        return url;
+    }
 
     public static URL buildUrl(String query){
         Uri builtUri = Uri.parse(QUOTE_BASE_URL1).buildUpon()

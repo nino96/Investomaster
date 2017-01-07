@@ -1,7 +1,11 @@
 package com.example.android.investomaster;
 
+import android.app.AlertDialog;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
@@ -10,11 +14,16 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ListView;
+import android.widget.NumberPicker;
+import android.widget.RelativeLayout;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
 
@@ -90,7 +99,7 @@ public class MainActivity extends AppCompatActivity {
                         String change = stock.getString("c");
 
                         price = price.replaceAll("^\"|\"$", "");
-                        //Log.v("PRICE", price);
+                        Log.v("PRICE", price);
                         symbol = symbol.replaceAll("^\"|\"$", "");
                         //Log.v("SYMBOL_DEBUG", symbol);
                         change_percent = change_percent.replaceAll("^\"|\"$", "");
@@ -149,6 +158,39 @@ public class MainActivity extends AppCompatActivity {
             listView = (ListView)findViewById(R.id.listView);
             listView.setAdapter(mAdapter);
 
+            listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                @Override
+                public void onItemClick(AdapterView<?> adapterView, View view, int position, long id) {
+                    //get cursor positioned to corresponding row in result set
+                    Cursor cursor = (Cursor) listView.getItemAtPosition(position);
+
+//                    String symbol = cursor.getString(cursor.getColumnIndexOrThrow("symbol"));
+//                    String name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
+//                    float change = cursor.getFloat(cursor.getColumnIndexOrThrow("change"));
+//                    float price = cursor.getFloat(cursor.getColumnIndexOrThrow("price"));
+//                    String change_percent = cursor.getString(cursor.getColumnIndexOrThrow("change_percent"));
+//                    int updown = cursor.getInt(cursor.getColumnIndexOrThrow("change_dir"));
+
+
+                    //create new activity,passing in the data of the selected item
+                    Intent detailed_info = new Intent(MainActivity.this,StockDetail.class);
+                    detailed_info.putExtra("ID",id);
+//                    detailed_info.putExtra("name",name);
+//                    detailed_info.putExtra("symbol",symbol);
+//                    detailed_info.putExtra("change",change);
+//                    detailed_info.putExtra("price",price);
+//                    detailed_info.putExtra("change_percent",change_percent);
+//                    detailed_info.putExtra("updown",updown);
+
+                    startActivity(detailed_info);
+
+
+                    //int itemid = cursor.getInt(cursor.getColumnIndexOrThrow("_id"));
+                    //Toast.makeText(getApplicationContext(),symbol+" "+id, Toast.LENGTH_SHORT).show();
+                }
+            });
+
+
             //cursor.close();
             //db.close();
         }catch(SQLiteException e){
@@ -157,13 +199,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void repeatTask(){
+
+        SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
+        int time = pref.getInt("AUTO_TIME",2);
+        Log.v("TIMEOUT",Integer.toString(time));
+
         Timer t = new Timer();
         t.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
                 getStockData();
             }
-        },0, 120000);
+        },0, 60000 * time);
 
     }
 
@@ -222,9 +269,56 @@ public class MainActivity extends AppCompatActivity {
                 break;
 
             case R.id.action_settings:
-
+                getAutoRefreshTimeout();
+                break;
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private void getAutoRefreshTimeout(){
+        RelativeLayout linearLayout = new RelativeLayout(MainActivity.this);
+        final NumberPicker aNumberPicker = new NumberPicker(MainActivity.this);
+        aNumberPicker.setMaxValue(30);
+        aNumberPicker.setMinValue(1);
+
+        RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(50, 50);
+        RelativeLayout.LayoutParams numPicerParams = new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT);
+        numPicerParams.addRule(RelativeLayout.CENTER_HORIZONTAL);
+
+        linearLayout.setLayoutParams(params);
+        linearLayout.addView(aNumberPicker,numPicerParams);
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        int current = prefs.getInt("AUTO_TIME",2);
+
+        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(MainActivity.this);
+        alertDialogBuilder.setTitle("Select auto refresh interval(current value "+ Integer.toString(current)+")");
+        alertDialogBuilder.setView(linearLayout);
+        alertDialogBuilder
+                .setCancelable(false)
+                .setPositiveButton("Set",
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog,
+                                                int id) {
+
+                                SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+                                SharedPreferences.Editor editor = pref.edit();
+                                editor.putInt("AUTO_TIME",aNumberPicker.getValue());
+                                editor.commit();
+
+                                Log.e("","New Quantity Value : "+ aNumberPicker.getValue());
+
+                            }
+                        })
+                .setNegativeButton("Cancel",
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog,
+                                                int id) {
+                                dialog.cancel();
+                            }
+                        });
+        AlertDialog alertDialog = alertDialogBuilder.create();
+        alertDialog.show();
     }
 }

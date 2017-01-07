@@ -36,10 +36,10 @@ public class StockDatabaseHelper extends SQLiteOpenHelper {
                 + "symbol TEXT, "
                 + "name TEXT, "
                 //+ "exchange TEXT, "
-                + "price REAL, "
+                + "price TEXT, "
                 + "change_dir INTEGER, "
-                + "change REAL, "
-                + "change_percent REAL);");
+                + "change TEXT, "
+                + "change_percent TEXT);");
         mCSVfile = "NASDAQ.csv";
         //AssetManager manager = context.getAssets();
         InputStream inStream = null;

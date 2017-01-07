@@ -12,6 +12,8 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
@@ -41,10 +43,12 @@ public class MainActivity extends AppCompatActivity {
         //mJsonResponse = (TextView)findViewById(R.id.tv_json_response);
 
 
+        //CURRENTLY mAdapter gets defined in displayListView() and gets referenced in repeatTask()
+        //therefore call to displayListView() call before repeatTask()
 
         displayListView();
         repeatTask();
-        displayListView();
+        //displayListView();
 
     }
 
@@ -106,15 +110,6 @@ public class MainActivity extends AppCompatActivity {
 
                         db.update("nasdaq", stockValues, "symbol = ?", new String[]{symbol});
 
-
-
-                    /*TextView tv = new TextView(MainActivity.this);
-                    tv.setText(symbol+"    "+price+"    "+dir+change_percent);
-                    tv.setTextSize(22);
-                    tv.setLayoutParams(new LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.MATCH_PARENT,
-                            LinearLayout.LayoutParams.WRAP_CONTENT));
-                    linear.addView(tv);*/
                     }
 
                 }catch(JSONException e){
@@ -156,8 +151,6 @@ public class MainActivity extends AppCompatActivity {
 
             //cursor.close();
             //db.close();
-
-
         }catch(SQLiteException e){
             e.printStackTrace();
         }
@@ -184,7 +177,6 @@ public class MainActivity extends AppCompatActivity {
 
             Cursor cursor = db.query("nasdaq", new String[]{"symbol"},null, null, null, null, null,String.valueOf(50));
 
-
             while(cursor.moveToNext()){
                 query = cursor.getString(0);
 
@@ -203,8 +195,6 @@ public class MainActivity extends AppCompatActivity {
             //cursor.close();
             //db.close();
 
-
-
         }catch(SQLiteException e) {
             e.printStackTrace();
         }
@@ -215,5 +205,26 @@ public class MainActivity extends AppCompatActivity {
                 = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
         return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.main,menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int itemId = item.getItemId();
+        switch(itemId){
+            case R.id.action_refresh:
+                getStockData();
+                break;
+
+            case R.id.action_settings:
+
+        }
+
+        return super.onOptionsItemSelected(item);
     }
 }

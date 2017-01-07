@@ -19,12 +19,18 @@ android {
     }
 }
 
+repositories{
+    maven { url "https://jitpack.io" }
+}
+
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
     compile 'com.android.support:appcompat-v7:25.1.0'
+
+    compile 'com.github.PhilJay:MPAndroidChart:v2.2.4'
     compile files('libs/opencsv-2.3.jar');
     testCompile 'junit:junit:4.12'
 

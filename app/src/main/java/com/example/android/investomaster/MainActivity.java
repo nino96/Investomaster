@@ -164,26 +164,11 @@ public class MainActivity extends AppCompatActivity {
                     //get cursor positioned to corresponding row in result set
                     Cursor cursor = (Cursor) listView.getItemAtPosition(position);
 
-//                    String symbol = cursor.getString(cursor.getColumnIndexOrThrow("symbol"));
-//                    String name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
-//                    float change = cursor.getFloat(cursor.getColumnIndexOrThrow("change"));
-//                    float price = cursor.getFloat(cursor.getColumnIndexOrThrow("price"));
-//                    String change_percent = cursor.getString(cursor.getColumnIndexOrThrow("change_percent"));
-//                    int updown = cursor.getInt(cursor.getColumnIndexOrThrow("change_dir"));
-
-
                     //create new activity,passing in the data of the selected item
                     Intent detailed_info = new Intent(MainActivity.this,StockDetail.class);
                     detailed_info.putExtra("ID",id);
-//                    detailed_info.putExtra("name",name);
-//                    detailed_info.putExtra("symbol",symbol);
-//                    detailed_info.putExtra("change",change);
-//                    detailed_info.putExtra("price",price);
-//                    detailed_info.putExtra("change_percent",change_percent);
-//                    detailed_info.putExtra("updown",updown);
 
                     startActivity(detailed_info);
-
 
                     //int itemid = cursor.getInt(cursor.getColumnIndexOrThrow("_id"));
                     //Toast.makeText(getApplicationContext(),symbol+" "+id, Toast.LENGTH_SHORT).show();

@@ -5,6 +5,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.graphics.Color;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.widget.TextView;
@@ -78,6 +79,29 @@ public class StockDetail extends AppCompatActivity {
         getHistoricalData();
     }
 
+    public class HistoricalDataQueryTask extends AsyncTask<URL,Void,String>{
+
+        @Override
+        protected String doInBackground(URL... urls) {
+
+            URL url = urls[0];
+            String response = null;
+            try{
+                response = NetworkUtils.getResponseFromHttpUrl(url);
+
+            }catch (IOException e){
+                e.printStackTrace();
+            }
+
+            return response;
+
+        }
+
+
+
+
+    }
+
 
     private void getHistoricalData(){
         String startDate = "Jan 01, 2012";
@@ -87,13 +111,7 @@ public class StockDetail extends AppCompatActivity {
 
         //not using NetworkUtils getResponseFromHttpUrl method since requirement different
 
-        try{
-            String response = NetworkUtils.getResponseFromHttpUrl(url);
-            TextView tv = (TextView)findViewById(R.id.tv_historical_response);
-            tv.setText(response);
-        }catch (IOException e){
-            e.printStackTrace();
-        }
+
 
 
         /*try {

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/activity_favorites"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.example.android.investomaster.Favorites">
+
+    <TextView
+        android:id="@+id/tv_no_favorites"
+        android:layout_height="wrap_content"
+        android:layout_width="wrap_content"
+        android:text="No Favorites!\nAdd a favorite from detailed page of a stock"
+        android:visibility="gone"
+        android:textSize="20sp"
+        />
+    <ListView
+        android:id="@+id/listView_fav"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        />
+
+</RelativeLayout>

@@ -1,11 +1,15 @@
 package com.example.android.investomaster;
 
 import android.app.DatePickerDialog;
+import android.content.ContentValues;
+import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -83,17 +87,21 @@ public class StockDetail extends AppCompatActivity{
 
         setContentView(R.layout.activity_stock_detail);
 
+
         //webview if google doesn't have historical data
 //        mChartImage = (WebView)findViewById(R.id.chart_image);
 
         //initialize line chart variable
         mChart = (LineChart)findViewById(R.id.lineChart);
+        mChart.setNoDataText("No network or invalid date chosen");
+
+
 
 
         rowId = (Long) getIntent().getExtras().get("ID");
 
         try {
-            SQLiteOpenHelper stockDatabaseHelper = new StockDatabaseHelper(this);
+            SQLiteOpenHelper stockDatabaseHelper = StockDatabaseHelper.getInstance(this);
             SQLiteDatabase db = stockDatabaseHelper.getReadableDatabase();
 
             Cursor cursor = db.query("nasdaq",new String[]{"name","symbol","price","change","change_dir","change_percent"},"_id = ?",new String[]{Long.toString(rowId)},null,null,null);
@@ -107,7 +115,7 @@ public class StockDetail extends AppCompatActivity{
             changePercent = cursor.getString(5);
 
             //cursor.close();
-            //db.close();
+            db.close();
 
 
         }catch (SQLiteException e){
@@ -157,7 +165,15 @@ public class StockDetail extends AppCompatActivity{
 
 
         //default start date
-        getHistoricalData("Jan 01, 2016");
+        if(isNetworkAvailable()) {
+
+            getHistoricalData("Jan 01, 2016");
+        }
+        else{
+            mChart.clear();
+            mChart.invalidate();
+            mChart.setVisibility(View.VISIBLE);
+        }
     }
 
     public class HistoricalDataQueryTask extends AsyncTask<URL,Void,ArrayList<CustomObject>>{
@@ -201,6 +217,7 @@ public class StockDetail extends AppCompatActivity{
 
         @Override
         protected void onPostExecute(ArrayList<CustomObject> dataObjects) {
+
             /*TextView tv = (TextView)findViewById(R.id.tv_historical_response);
             tv.setText(s);*/
             //Log.v("HISTORICAL",strings.get(2));
@@ -213,7 +230,10 @@ public class StockDetail extends AppCompatActivity{
             // return from method and make mChart INVISIBLE
             if(dataObjects.size()<1){
 //                mChartImage.setVisibility(View.VISIBLE);
-                mChart.setVisibility(View.GONE);
+                //mChart.setVisibility(View.GONE);
+                mChart.clear();
+
+                //mChart.setNoDataText("No network or invalid date chosen");
 
                 return;
             }
@@ -264,7 +284,7 @@ public class StockDetail extends AppCompatActivity{
             // set data
             mChart.setData(data);
             mChart.setDescription("Stock History");
-            mChart.setNoDataTextDescription("No data from API");
+            mChart.setNoDataText("No network or invalid date chosen");
             mChart.setScaleEnabled(true);
             mChart.setDragEnabled(true);
 
@@ -278,9 +298,51 @@ public class StockDetail extends AppCompatActivity{
         }
     }
 
+
+    private void getHistoricalData(String startDate){
+        //String startDate = "Jan 01, 2012";
+
+
+        URL url = NetworkUtils.buildHistoricalUrl(symbol,startDate,endDate);
+
+        //not using NetworkUtils getResponseFromHttpUrl method since requirement different
+
+        new HistoricalDataQueryTask().execute(url);
+
+    }
+
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.stock_detail,menu);
+
+        try {
+            SQLiteOpenHelper stockDatabaseHelper = StockDatabaseHelper.getInstance(this);
+            SQLiteDatabase db = stockDatabaseHelper.getReadableDatabase();
+
+            MenuItem item = menu.findItem(R.id.action_check);
+            Cursor cursor = db.query("nasdaq", new String[]{"favorite"}, "_id = ?", new String[]{Long.toString(rowId)}, null, null, null);
+            cursor.moveToFirst();
+            boolean isChecked;
+
+            if(cursor.getInt(0)==0){
+                isChecked = false;
+            }
+            else
+            {
+                isChecked = true;
+            }
+
+            item.setChecked(isChecked);
+
+            cursor.close();
+            db.close();
+
+        }catch(SQLiteException e){
+            e.printStackTrace();
+        }
+
+
         return true;
     }
 
@@ -312,25 +374,60 @@ public class StockDetail extends AppCompatActivity{
 
                             //CONSTRUCT START DATE AND THEN CALL HISTORICAL DATA FUNCTION
                             String startDate = MONTHS[monthOfYear]+" "+dayOfMonth+", "+year;
-                            getHistoricalData(startDate);
+                            if(isNetworkAvailable()) {
+                                getHistoricalData(startDate);
+                            }
+                            else{
+                                mChart.clear();
+                                mChart.invalidate();
+                                mChart.setVisibility(View.VISIBLE);
+                            }
 
                         }
                     }, mYear, mMonth, mDay);
             datePickerDialog.show();
         }
+        if(itemId == R.id.action_check){
+
+            try {
+                SQLiteOpenHelper stockDatabaseHelper = StockDatabaseHelper.getInstance(this);
+                SQLiteDatabase db = stockDatabaseHelper.getReadableDatabase();
+
+                Cursor cursor = db.query("nasdaq",new String[]{"favorite"},"_id = ?",new String[]{Long.toString(rowId)},null,null,null);
+
+                cursor.moveToFirst();
+                //if not favorited then favorite else unfavorite
+                if(cursor.getInt(0)==0){
+                    ContentValues favorite = new ContentValues();
+                    favorite.put("favorite",1);
+
+                    item.setChecked(true);
+                    db.update("nasdaq",favorite,"_id = ?",new String[]{Long.toString(rowId)});
+                }
+                else{
+                    ContentValues favorite = new ContentValues();
+                    favorite.put("favorite",0);
+                    item.setChecked(false);
+                    db.update("nasdaq",favorite,"_id = ?",new String[]{Long.toString(rowId)});
+                }
+
+                cursor.close();
+                db.close();
+
+            }catch(SQLiteException e){
+                e.printStackTrace();
+            }
+        }
 
         return super.onOptionsItemSelected(item);
     }
 
-    private void getHistoricalData(String startDate){
-        //String startDate = "Jan 01, 2012";
 
 
-        URL url = NetworkUtils.buildHistoricalUrl(symbol,startDate,endDate);
-
-        //not using NetworkUtils getResponseFromHttpUrl method since requirement different
-
-        new HistoricalDataQueryTask().execute(url);
-
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager
+                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
 }

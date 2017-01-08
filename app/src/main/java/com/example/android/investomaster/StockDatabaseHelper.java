@@ -18,16 +18,29 @@ import java.io.InputStreamReader;
 
 public class StockDatabaseHelper extends SQLiteOpenHelper {
 
+    private static StockDatabaseHelper sInstance;
+
     private static final String DB_NAME="Stocks";
     private static final int DB_VERSION=1;
 
     String mCSVfile;
     AssetManager manager;
 
-    public StockDatabaseHelper(Context context){
+    public static synchronized StockDatabaseHelper getInstance(Context context) {
+
+        // Use the application context, which will ensure that you
+        // don't accidentally leak an Activity's context.
+        // See this article for more information: http://bit.ly/6LRzfx
+        if (sInstance == null) {
+            sInstance = new StockDatabaseHelper(context.getApplicationContext());
+        }
+        return sInstance;
+    }
+
+    private StockDatabaseHelper(Context context){
         super(context,DB_NAME,null,DB_VERSION);
 
-        manager = context.getAssets();
+        //manager = context.getAssets();
     }
 
     @Override
@@ -39,7 +52,10 @@ public class StockDatabaseHelper extends SQLiteOpenHelper {
                 + "price TEXT, "
                 + "change_dir INTEGER, "
                 + "change TEXT, "
-                + "change_percent TEXT);");
+                + "change_percent TEXT, "
+                + "favorite INTEGER DEFAULT 0, "
+                + "lower INTEGER, "
+                + "upper INTEGER );");
         mCSVfile = "NASDAQ.csv";
         //AssetManager manager = context.getAssets();
         InputStream inStream = null;

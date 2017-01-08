@@ -8,4 +8,12 @@
         android:orderInCategory="1"
         />
 
+    <item
+        android:id="@+id/action_check"
+        android:title="@string/action_check"
+        android:orderInCategory="200"
+        app:showAsAction="never"
+        android:visible="true"
+        android:checkable="true"/>
+
 </menu>

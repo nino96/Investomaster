@@ -23,11 +23,14 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.NumberPicker;
+import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.android.investomaster.utilities.NetworkUtils;
+import com.jeremyfeinstein.slidingmenu.lib.SlidingMenu;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -43,6 +46,10 @@ public class MainActivity extends AppCompatActivity {
     private TextView mJsonResponse;
     public SimpleCursorAdapter mAdapter;
     private ListView listView;
+    private Timer t;
+
+    private SlidingMenu slidingMenu;
+    private ProgressBar mLoadingIndicator;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,7 +57,17 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         //mJsonResponse = (TextView)findViewById(R.id.tv_json_response);
+        mLoadingIndicator = (ProgressBar)findViewById(R.id.pb_loading_indicator);
 
+        slidingMenu = new SlidingMenu(this);
+        slidingMenu.setMode(SlidingMenu.LEFT);
+        slidingMenu.setTouchModeAbove(SlidingMenu.SLIDING_WINDOW);
+       // menu.setShadowWidthRes(R.dimen.shadow_width);
+        //menu.setShadowDrawable(R.drawable.shadow);
+        //menu.setBehindOffsetRes(R.dimen.slidingmenu_offset);
+        slidingMenu.setFadeDegree(0.35f);
+        slidingMenu.attachToActivity(this, SlidingMenu.SLIDING_CONTENT);
+        slidingMenu.setMenu(R.layout.sliding_menu);
 
         //CURRENTLY mAdapter gets defined in displayListView() and gets referenced in repeatTask()
         //therefore call to displayListView() call before repeatTask()
@@ -86,7 +103,12 @@ public class MainActivity extends AppCompatActivity {
             //LinearLayout linear = (LinearLayout)findViewById(R.id.linear_layout_main);
             //linear.removeAllViews();
 
-            SQLiteOpenHelper stockDatabaseHelper = new StockDatabaseHelper(MainActivity.this);
+            //MAKE LOADING PROGRESS BAR INVISIBLE AGAIN NOW THAT PROCESSING IS DONE(SINCE IN onPostExecute)
+            mLoadingIndicator.setVisibility(View.INVISIBLE);
+
+
+
+            SQLiteOpenHelper stockDatabaseHelper = StockDatabaseHelper.getInstance(MainActivity.this);
             SQLiteDatabase db = stockDatabaseHelper.getReadableDatabase();
 
             for(String json:strings){
@@ -138,7 +160,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void displayListView(){
         try {
-            SQLiteOpenHelper stockDatabaseHelper = new StockDatabaseHelper(this);
+            SQLiteOpenHelper stockDatabaseHelper = StockDatabaseHelper.getInstance(this);
             SQLiteDatabase db = stockDatabaseHelper.getReadableDatabase();
 
             //Cursor cursor = db.query("nasdaq", new String[]{"symbol"},null, null, null, null, null,);
@@ -177,7 +199,7 @@ public class MainActivity extends AppCompatActivity {
 
 
             //cursor.close();
-            //db.close();
+            db.close();
         }catch(SQLiteException e){
             e.printStackTrace();
         }
@@ -189,7 +211,11 @@ public class MainActivity extends AppCompatActivity {
         int time = pref.getInt("AUTO_TIME",2);
         Log.v("TIMEOUT",Integer.toString(time));
 
-        Timer t = new Timer();
+        //t!=null if this is not the first call,if not first call then timeout value has changed,so cancel previous task
+        if(t!=null) {
+            t.cancel();
+        }
+        t = new Timer();
         t.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
@@ -204,7 +230,7 @@ public class MainActivity extends AppCompatActivity {
         ArrayList<URL> urls = new ArrayList<URL>();
         String query = null;
         try {
-            SQLiteOpenHelper stockDatabaseHelper = new StockDatabaseHelper(this);
+            SQLiteOpenHelper stockDatabaseHelper = StockDatabaseHelper.getInstance(this);
             SQLiteDatabase db = stockDatabaseHelper.getReadableDatabase();
 
             Cursor cursor = db.query("nasdaq", new String[]{"symbol"},null, null, null, null, null,String.valueOf(50));
@@ -224,8 +250,20 @@ public class MainActivity extends AppCompatActivity {
                 Log.v("NETWORK","Available");
                 new StockQueryTask().execute(urls);
             }
+            else
+            {
+                //make invisible if network not present
+                mLoadingIndicator.setVisibility(View.INVISIBLE);
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(MainActivity.this,"No Network!",Toast.LENGTH_LONG).show();
+                    }
+                });
+
+            }
             //cursor.close();
-            //db.close();
+            db.close();
 
         }catch(SQLiteException e) {
             e.printStackTrace();
@@ -250,11 +288,17 @@ public class MainActivity extends AppCompatActivity {
         int itemId = item.getItemId();
         switch(itemId){
             case R.id.action_refresh:
+                mLoadingIndicator.setVisibility(View.VISIBLE);
                 getStockData();
                 break;
 
             case R.id.action_settings:
                 getAutoRefreshTimeout();
+                break;
+
+            case R.id.action_favorite:
+                Intent favorites = new Intent(this,Favorites.class);
+                startActivity(favorites);
                 break;
         }
 
@@ -291,6 +335,7 @@ public class MainActivity extends AppCompatActivity {
                                 SharedPreferences.Editor editor = pref.edit();
                                 editor.putInt("AUTO_TIME",aNumberPicker.getValue());
                                 editor.commit();
+                                repeatTask();
 
                                 Log.e("","New Quantity Value : "+ aNumberPicker.getValue());
 

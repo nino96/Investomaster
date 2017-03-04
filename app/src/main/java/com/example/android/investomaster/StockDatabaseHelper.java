@@ -28,9 +28,7 @@ public class StockDatabaseHelper extends SQLiteOpenHelper {
 
     public static synchronized StockDatabaseHelper getInstance(Context context) {
 
-        // Use the application context, which will ensure that you
-        // don't accidentally leak an Activity's context.
-        // See this article for more information: http://bit.ly/6LRzfx
+
         if (sInstance == null) {
             sInstance = new StockDatabaseHelper(context.getApplicationContext());
         }
@@ -40,7 +38,7 @@ public class StockDatabaseHelper extends SQLiteOpenHelper {
     private StockDatabaseHelper(Context context){
         super(context,DB_NAME,null,DB_VERSION);
 
-        //manager = context.getAssets();
+        manager = context.getAssets();
     }
 
     @Override
@@ -48,16 +46,16 @@ public class StockDatabaseHelper extends SQLiteOpenHelper {
         db.execSQL("CREATE TABLE nasdaq (_id INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + "symbol TEXT, "
                 + "name TEXT, "
-                //+ "exchange TEXT, "
                 + "price TEXT, "
                 + "change_dir INTEGER, "
                 + "change TEXT, "
                 + "change_percent TEXT, "
+                + "notif INTEGER DEFAULT 0, "
                 + "favorite INTEGER DEFAULT 0, "
-                + "lower INTEGER, "
-                + "upper INTEGER );");
+                + "lower INTEGER DEFAULT -1, "
+                + "upper INTEGER DEFAULT -1);");
         mCSVfile = "NASDAQ.csv";
-        //AssetManager manager = context.getAssets();
+
         InputStream inStream = null;
         try {
             inStream = manager.open(mCSVfile);
@@ -74,15 +72,11 @@ public class StockDatabaseHelper extends SQLiteOpenHelper {
             line = buffer.readLine();
             while ((line = buffer.readLine()) != null) {
                 String[] colums = line.split(",");
-                /*if (colums.length < 11) {
-                    Log.d("CSVParser", "Skipping Bad CSV Row");
-                    continue;
-                }*/
+
                 Log.v("COLUMNS",colums[0]);
                 ContentValues cv = new ContentValues();
                 cv.put("symbol", colums[0].trim().replaceAll("^\"|\"$", ""));
                 cv.put("name", colums[1].trim().replaceAll("^\"|\"$", ""));
-                //cv.put("exchange","nasdaq");
                 db.insert("nasdaq", null, cv);
             }
         } catch (IOException e) {

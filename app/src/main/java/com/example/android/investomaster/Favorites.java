@@ -33,19 +33,18 @@ public class Favorites extends AppCompatActivity {
 
 
 
-    //onRestart() to update the favorites list if changing some favorites and then pressing back button to get original activity
-    //without changes, so update listview here
+
     @Override
     protected void onRestart() {
         super.onRestart();
 
-        //DON'T INVOKE IF MADAPTER NOT INITIALIZED YET
+
         if(mAdapter!=null) {
             try {
                 SQLiteOpenHelper stockDatabaseHelper = StockDatabaseHelper.getInstance(this);
                 SQLiteDatabase db = stockDatabaseHelper.getReadableDatabase();
 
-                //Cursor cursor = db.query("nasdaq", new String[]{"symbol"},null, null, null, null, null,);
+
                 Cursor cursor = db.query("nasdaq", new String[]{"_id", "name", "symbol", "price"}, "favorite = ?", new String[]{Integer.toString(1)}, null, null, null);
 
                 mAdapter.changeCursor(cursor);
@@ -63,7 +62,7 @@ public class Favorites extends AppCompatActivity {
             SQLiteOpenHelper stockDatabaseHelper = StockDatabaseHelper.getInstance(this);
             SQLiteDatabase db = stockDatabaseHelper.getReadableDatabase();
 
-            //Cursor cursor = db.query("nasdaq", new String[]{"symbol"},null, null, null, null, null,);
+
             Cursor cursor = db.query("nasdaq", new String[]{"_id","name","symbol","price"},"favorite = ?", new String[]{Integer.toString(1)}, null, null, null);
 
             if(!cursor.moveToFirst()){
@@ -85,7 +84,7 @@ public class Favorites extends AppCompatActivity {
             };
 
             mAdapter = new SimpleCursorAdapter(this,R.layout.stock_info,cursor,columns,to,0);
-            //listView = (ListView)findViewById(R.id.listView);
+
             listView.setAdapter(mAdapter);
 
             listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -105,11 +104,7 @@ public class Favorites extends AppCompatActivity {
             });
 
 
-            //IF CLOSED THEN GIVING ILLEGAL STATE EXCEPTION(Attempt to reopen already closed object : sqlitequery)
-            //so cursor.close() releases all resources and should not be closed until we are done with all the work with it
 
-            //cursor.close();
-            //db.close();
         }catch(SQLiteException e){
             e.printStackTrace();
         }

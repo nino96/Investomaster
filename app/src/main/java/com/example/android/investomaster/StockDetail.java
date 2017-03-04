@@ -3,6 +3,8 @@ package com.example.android.investomaster;
 import android.app.DatePickerDialog;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.content.res.Configuration;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
@@ -12,14 +14,18 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
+import android.text.InputType;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.Window;
 import android.widget.DatePicker;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.android.investomaster.utilities.NetworkUtils;
 import com.github.mikephil.charting.charts.LineChart;
@@ -49,15 +55,10 @@ public class StockDetail extends AppCompatActivity{
     private int rise_fall;
     private String changePercent;
 
-    //END DATE WHICH IS ALWAYS THE CURRENT DATE
+
     private String endDate;
 
     private InputStream in;
-
-    //ImageView for charts not provided by google
-//    private WebView mChartImage;
-
-    //LineChart for graph
     private LineChart mChart;
 
     class CustomObject {
@@ -82,16 +83,11 @@ public class StockDetail extends AppCompatActivity{
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        //TO REQUEST NOT TO USE TITLE
+
         requestWindowFeature(Window.FEATURE_NO_TITLE);
 
         setContentView(R.layout.activity_stock_detail);
 
-
-        //webview if google doesn't have historical data
-//        mChartImage = (WebView)findViewById(R.id.chart_image);
-
-        //initialize line chart variable
         mChart = (LineChart)findViewById(R.id.lineChart);
         mChart.setNoDataText("No network or invalid date chosen");
 
@@ -114,8 +110,8 @@ public class StockDetail extends AppCompatActivity{
             rise_fall = cursor.getInt(4);
             changePercent = cursor.getString(5);
 
-            //cursor.close();
-            db.close();
+
+            //db.close();
 
 
         }catch (SQLiteException e){
@@ -142,12 +138,6 @@ public class StockDetail extends AppCompatActivity{
             tv.setTextColor(Color.GREEN);
         }
 
-        //SET WEBVIEW URL (STILL INVISIBLE)!!!!
-//        mChartImage.loadUrl("http://chart.finance.yahoo.com/c/1y/"+symbol);
-
-
-        //CONSTRUCT CURRENT DATE,WHICH WILL BE END DATE FOR GRAPH
-
         String[] MONTHS = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
         int mYear,mMonth,mDay;
@@ -164,10 +154,20 @@ public class StockDetail extends AppCompatActivity{
         endDate = month+" "+mDay+", "+mYear;
 
 
+        //get date that is 1 month previous to current date;
+        c.add(Calendar.MONTH,-1);
+        mYear = c.get(Calendar.YEAR);
+        mMonth = c.get(Calendar.MONTH);
+        mDay = c.get(Calendar.DAY_OF_MONTH);
+
+        month = MONTHS[mMonth];
+        String startDate = month+" "+mDay+", "+mYear;
+
+
         //default start date
         if(isNetworkAvailable()) {
 
-            getHistoricalData("Jan 01, 2016");
+            getHistoricalData(startDate);
         }
         else{
             mChart.clear();
@@ -176,7 +176,10 @@ public class StockDetail extends AppCompatActivity{
         }
     }
 
-    public class HistoricalDataQueryTask extends AsyncTask<URL,Void,ArrayList<CustomObject>>{
+
+
+
+    public class HistoricalDataQueryTask extends AsyncTask<URL,String,ArrayList<CustomObject>>{
 
         @Override
         protected ArrayList<CustomObject> doInBackground(URL... urls) {
@@ -205,7 +208,7 @@ public class StockDetail extends AppCompatActivity{
 
                     dataObjects.add(c);
                 }
-                //Log.v("CSVReader", yAxis.get(2));
+
 
             }catch (IOException e){
                 e.printStackTrace();
@@ -215,37 +218,36 @@ public class StockDetail extends AppCompatActivity{
 
         }
 
+
+        protected void onProgressUpdate(String... data) {
+            if (data[0].equals("error")) {
+                Toast.makeText(StockDetail.this, "Connection is busy!", Toast.LENGTH_SHORT).show();
+            }
+        }
+
+
         @Override
         protected void onPostExecute(ArrayList<CustomObject> dataObjects) {
 
-            /*TextView tv = (TextView)findViewById(R.id.tv_historical_response);
-            tv.setText(s);*/
-            //Log.v("HISTORICAL",strings.get(2));
+
             ArrayList<Entry> yVals = new ArrayList<Entry>();        //y-axis values as (float,count) combination
             ArrayList<String> xVals = new ArrayList<String>();      //x-axis values as string
 
             int count = 0;
 
-            //if response empty(either because google did not respond or user chose very small date window) then
-            // return from method and make mChart INVISIBLE
+
             if(dataObjects.size()<1){
-//                mChartImage.setVisibility(View.VISIBLE);
-                //mChart.setVisibility(View.GONE);
+
                 mChart.clear();
-
-                //mChart.setNoDataText("No network or invalid date chosen");
-
                 return;
             }
 
-            //REVERSE SINCE DATES START FROM MOST RECENT IN CSV FILE,WHEREAS WE WANT IT TO START FROM OLDEST!!!!!
             Collections.reverse(dataObjects);
-
 
             for(CustomObject o:dataObjects){
 
                 xVals.add(o.getValue1());
-                Log.v("ENTRY",o.getValue2());
+
 
                 try{
                     Float.parseFloat(o.getValue2());
@@ -259,14 +261,10 @@ public class StockDetail extends AppCompatActivity{
 
             LineDataSet set1;
 
-            // create a dataset and give it a type
+
             set1 = new LineDataSet(yVals, "DataSet 1");
             set1.setFillAlpha(110);
-            // set1.setFillColor(Color.RED);
 
-            // set the line to be drawn like this "- - - - - -"
-            // set1.enableDashedLine(10f, 5f, 0f);
-            // set1.enableDashedHighlightLine(10f, 5f, 0f);
             set1.setColor(Color.BLACK);
             set1.setCircleColor(Color.BLACK);
             set1.setLineWidth(0.1f);
@@ -288,8 +286,7 @@ public class StockDetail extends AppCompatActivity{
             mChart.setScaleEnabled(true);
             mChart.setDragEnabled(true);
 
-            //make webview invisible and chart visible if google has data
-//            mChartImage.setVisibility(View.GONE);
+
             mChart.setVisibility(View.VISIBLE);
 
             mChart.invalidate();
@@ -300,12 +297,7 @@ public class StockDetail extends AppCompatActivity{
 
 
     private void getHistoricalData(String startDate){
-        //String startDate = "Jan 01, 2012";
-
-
         URL url = NetworkUtils.buildHistoricalUrl(symbol,startDate,endDate);
-
-        //not using NetworkUtils getResponseFromHttpUrl method since requirement different
 
         new HistoricalDataQueryTask().execute(url);
 
@@ -335,8 +327,8 @@ public class StockDetail extends AppCompatActivity{
 
             item.setChecked(isChecked);
 
-            cursor.close();
-            db.close();
+            //cursor.close();
+            //db.close();
 
         }catch(SQLiteException e){
             e.printStackTrace();
@@ -372,7 +364,7 @@ public class StockDetail extends AppCompatActivity{
                         public void onDateSet(DatePicker view, int year,
                                               int monthOfYear, int dayOfMonth) {
 
-                            //CONSTRUCT START DATE AND THEN CALL HISTORICAL DATA FUNCTION
+
                             String startDate = MONTHS[monthOfYear]+" "+dayOfMonth+", "+year;
                             if(isNetworkAvailable()) {
                                 getHistoricalData(startDate);
@@ -389,6 +381,8 @@ public class StockDetail extends AppCompatActivity{
         }
         if(itemId == R.id.action_check){
 
+		//could replace database checking with just checking if favourites button was already checked or not? or would that not work
+		
             try {
                 SQLiteOpenHelper stockDatabaseHelper = StockDatabaseHelper.getInstance(this);
                 SQLiteDatabase db = stockDatabaseHelper.getReadableDatabase();
@@ -411,12 +405,154 @@ public class StockDetail extends AppCompatActivity{
                     db.update("nasdaq",favorite,"_id = ?",new String[]{Long.toString(rowId)});
                 }
 
-                cursor.close();
-                db.close();
+                //cursor.close();
+                //db.close();
 
             }catch(SQLiteException e){
                 e.printStackTrace();
             }
+        }
+
+        if(itemId == R.id.action_limits){
+
+            //using support library version of alertdialog and not new version(API 25)
+
+            AlertDialog.Builder alert = new AlertDialog.Builder(this);
+            alert.setTitle("Set stock watchpoints");
+
+           // Context context = .getContext();
+            LinearLayout layout = new LinearLayout(this);
+            layout.setOrientation(LinearLayout.VERTICAL);
+
+            final TextView current_l = new TextView(this);
+            final TextView current_h = new TextView(this);
+            final EditText lower = new EditText(this);
+            final EditText upper = new EditText(this);
+
+            current_l.setText("");
+            current_h.setText("");
+            lower.setHint("Lower watchpoint");
+            upper.setHint("Upper watchpoint");
+
+            lower.setInputType(InputType.TYPE_CLASS_NUMBER);
+            lower.setRawInputType(Configuration.KEYBOARD_12KEY);
+            upper.setInputType(InputType.TYPE_CLASS_NUMBER);
+            upper.setRawInputType(Configuration.KEYBOARD_12KEY);
+
+            try {
+                SQLiteOpenHelper stockDatabaseHelper = StockDatabaseHelper.getInstance(StockDetail.this);
+                SQLiteDatabase db = stockDatabaseHelper.getReadableDatabase();
+
+                Cursor cursor = db.query("nasdaq", new String[]{"lower,upper"}, "_id = ?", new String[]{Long.toString(rowId)}, null, null, null);
+                cursor.moveToFirst();
+                int current_lower = cursor.getInt(0);
+                int current_upper = cursor.getInt(1);
+
+                if(current_lower!=-1){
+                    current_l.setText("Lower : "+Integer.toString(current_lower));
+                    current_l.setVisibility(View.VISIBLE);
+                }
+                else{
+                    current_l.setVisibility(View.GONE);
+                }
+
+                if(current_upper!=-1){
+                    current_h.setText("Upper : "+Integer.toString(current_upper));
+                    current_h.setVisibility(View.VISIBLE);
+                }
+                else{
+                    current_h.setVisibility(View.GONE);
+                }
+
+            }catch(SQLiteException e){
+
+                e.printStackTrace();
+            }
+
+
+
+
+            layout.addView(current_l);
+            layout.addView(current_h);
+            layout.addView(lower);
+            layout.addView(upper);
+
+            alert.setView(layout);
+
+            alert.setPositiveButton("Set", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int whichButton) {
+
+                    try {
+                        SQLiteOpenHelper stockDatabaseHelper = StockDatabaseHelper.getInstance(StockDetail.this);
+                        SQLiteDatabase db = stockDatabaseHelper.getReadableDatabase();
+
+                        Cursor cursor;
+
+                    int l = Integer.parseInt(lower.getText().toString());
+                    int h = Integer.parseInt(upper.getText().toString());
+
+                    if(l>0 && h>0 && l<h){
+                        ContentValues limits = new ContentValues();
+
+                        limits.put("lower",l);
+                        limits.put("upper",h);
+                        limits.put("notif",0);
+
+                        db.update("nasdaq", limits, "_id = ?", new String[]{Long.toString(rowId)});
+
+
+                        dialog.dismiss();
+
+                    }
+                    else if(l>h){
+                        Toast.makeText(getApplicationContext(),
+                                "Lower watchpoint must be lower than higher watchpoint", Toast.LENGTH_LONG).show();
+                    }
+                    else if(l>0){
+                        ContentValues limits = new ContentValues();
+
+                        limits.put("lower",l);
+                        limits.put("notif",0);
+
+                        db.update("nasdaq", limits, "_id = ?", new String[]{Long.toString(rowId)});
+
+                        dialog.dismiss();
+                    }
+                    else if(h>0)
+                    {
+                        ContentValues limits = new ContentValues();
+
+                        limits.put("lower",l);
+                        limits.put("notif",0);
+
+                        db.update("nasdaq", limits, "_id = ?", new String[]{Long.toString(rowId)});
+
+                        dialog.dismiss();
+                    }
+                    else{
+                        Toast.makeText(getApplicationContext(),
+                                "Please enter valid watchpoints", Toast.LENGTH_LONG).show();
+                    }
+
+                    }catch (NumberFormatException e)
+                    {
+                        Toast.makeText(getApplicationContext(),
+                                "Please enter valid watchpoints", Toast.LENGTH_LONG).show();
+                        //dialog.dismiss();
+                    }
+                    catch (SQLiteException e){
+                        e.printStackTrace();
+                    }
+                }
+            });
+            alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int whichButton) {
+
+                    dialog.dismiss();
+                }
+            });
+            alert.show();
+
         }
 
         return super.onOptionsItemSelected(item);

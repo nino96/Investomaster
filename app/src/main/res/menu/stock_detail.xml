@@ -11,9 +11,16 @@
     <item
         android:id="@+id/action_check"
         android:title="@string/action_check"
-        android:orderInCategory="200"
+        android:orderInCategory="2"
         app:showAsAction="never"
         android:visible="true"
         android:checkable="true"/>
+
+    <item
+        android:id="@+id/action_limits"
+        android:title="Watchpoints"
+        android:orderInCategory="3"
+        app:showAsAction="ifRoom"
+        />
 
 </menu>

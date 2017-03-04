@@ -1,6 +1,8 @@
 package com.example.android.investomaster;
 
 import android.app.AlertDialog;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -15,6 +17,7 @@ import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.v4.app.NotificationCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
@@ -30,7 +33,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.android.investomaster.utilities.NetworkUtils;
-import com.jeremyfeinstein.slidingmenu.lib.SlidingMenu;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -38,6 +40,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -48,7 +51,6 @@ public class MainActivity extends AppCompatActivity {
     private ListView listView;
     private Timer t;
 
-    private SlidingMenu slidingMenu;
     private ProgressBar mLoadingIndicator;
 
     @Override
@@ -56,25 +58,13 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        //mJsonResponse = (TextView)findViewById(R.id.tv_json_response);
+
         mLoadingIndicator = (ProgressBar)findViewById(R.id.pb_loading_indicator);
 
-        slidingMenu = new SlidingMenu(this);
-        slidingMenu.setMode(SlidingMenu.LEFT);
-        slidingMenu.setTouchModeAbove(SlidingMenu.SLIDING_WINDOW);
-       // menu.setShadowWidthRes(R.dimen.shadow_width);
-        //menu.setShadowDrawable(R.drawable.shadow);
-        //menu.setBehindOffsetRes(R.dimen.slidingmenu_offset);
-        slidingMenu.setFadeDegree(0.35f);
-        slidingMenu.attachToActivity(this, SlidingMenu.SLIDING_CONTENT);
-        slidingMenu.setMenu(R.layout.sliding_menu);
-
-        //CURRENTLY mAdapter gets defined in displayListView() and gets referenced in repeatTask()
-        //therefore call to displayListView() call before repeatTask()
 
         displayListView();
         repeatTask();
-        //displayListView();
+
 
     }
 
@@ -100,10 +90,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected void onPostExecute(ArrayList<String> strings) {
-            //LinearLayout linear = (LinearLayout)findViewById(R.id.linear_layout_main);
-            //linear.removeAllViews();
 
-            //MAKE LOADING PROGRESS BAR INVISIBLE AGAIN NOW THAT PROCESSING IS DONE(SINCE IN onPostExecute)
             mLoadingIndicator.setVisibility(View.INVISIBLE);
 
 
@@ -121,11 +108,82 @@ public class MainActivity extends AppCompatActivity {
                         String change = stock.getString("c");
 
                         price = price.replaceAll("^\"|\"$", "");
-                        Log.v("PRICE", price);
                         symbol = symbol.replaceAll("^\"|\"$", "");
                         //Log.v("SYMBOL_DEBUG", symbol);
                         change_percent = change_percent.replaceAll("^\"|\"$", "");
                         change = change.replaceAll("^\"|\"$", "");
+
+
+                        //---------------SEND NOTIFICATION LOGIC---------------
+                        float temp = Float.parseFloat(price);
+
+
+                        Cursor cursor = db.query("nasdaq", new String[]{"_id","lower","upper","notif","name"},"symbol =  ?", new String[]{symbol}, null, null, null);
+                        cursor.moveToFirst();
+
+
+                        long id = cursor.getLong(0);
+                        int lower = cursor.getInt(1);
+                        int upper = cursor.getInt(2);
+                        int notif = cursor.getInt(3);
+                        String stock_name = cursor.getString(4);
+
+
+                        if((lower!=-1 || upper!=-1)&& notif==0 ){
+
+                            NotificationCompat.Builder mBuilder = null;
+
+
+                            if(lower!=-1 && temp<lower){
+                                mBuilder =
+                                         new NotificationCompat.Builder(getApplicationContext())
+                                                .setSmallIcon(R.drawable.ic_settings_white_24dp)
+                                                .setContentTitle("Stock "+symbol)
+                                                .setContentText("Current price : "+price+" < Watchpoint "+Integer.toString(lower));
+
+
+                            }
+                            else if(upper!=-1 && temp>upper){
+                                mBuilder =
+                                        (NotificationCompat.Builder) new NotificationCompat.Builder(getApplicationContext())
+                                                .setSmallIcon(R.drawable.ic_settings_white_24dp)
+                                                .setContentTitle("Stock "+symbol)
+                                                .setContentText("Current price : "+price+" > Watchpoint "+Integer.toString(upper));
+                            }
+
+
+                            NotificationManager mNotificationManager =
+
+                                    (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+
+                            int m = (int) ((new Date().getTime() / 1000L) % Integer.MAX_VALUE);
+
+
+                            Intent detailed_info = new Intent(MainActivity.this,StockDetail.class);
+                            detailed_info.putExtra("ID",id);
+                            PendingIntent pendingIntent = PendingIntent.getActivity(MainActivity.this, (int)(Math.random()*100), detailed_info, 0);
+                            mBuilder.setContentIntent(pendingIntent);
+
+                            mNotificationManager.notify((int)(Math.random()*100),mBuilder.build());
+
+                            //NOW SET notif to 1
+                            ContentValues notifs = new ContentValues();
+                            notifs.put("notif",1);
+                            db.update("nasdaq", notifs, "symbol = ?", new String[]{symbol});
+
+                        }
+                        else{
+
+                            //if price is between lower and upper then reset notif to 0,to allow notifications after first occurance
+                            if(temp>lower && temp<upper){
+                                ContentValues notifs = new ContentValues();
+                                notifs.put("notif",0);
+                                db.update("nasdaq", notifs, "symbol = ?", new String[]{symbol});
+                            }
+                        }
+
+                        //----------------  SEND NOTIFICATION LOGIC OVER-----------------
 
 
                         ContentValues stockValues = new ContentValues();
@@ -163,7 +221,7 @@ public class MainActivity extends AppCompatActivity {
             SQLiteOpenHelper stockDatabaseHelper = StockDatabaseHelper.getInstance(this);
             SQLiteDatabase db = stockDatabaseHelper.getReadableDatabase();
 
-            //Cursor cursor = db.query("nasdaq", new String[]{"symbol"},null, null, null, null, null,);
+
             Cursor cursor = db.query("nasdaq", new String[]{"_id","name","symbol","price"},null, null, null, null, null,String.valueOf(50));
 
             String[] columns = new String[]{
@@ -183,23 +241,22 @@ public class MainActivity extends AppCompatActivity {
             listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                 @Override
                 public void onItemClick(AdapterView<?> adapterView, View view, int position, long id) {
-                    //get cursor positioned to corresponding row in result set
+
                     Cursor cursor = (Cursor) listView.getItemAtPosition(position);
 
-                    //create new activity,passing in the data of the selected item
+
                     Intent detailed_info = new Intent(MainActivity.this,StockDetail.class);
                     detailed_info.putExtra("ID",id);
 
                     startActivity(detailed_info);
 
-                    //int itemid = cursor.getInt(cursor.getColumnIndexOrThrow("_id"));
-                    //Toast.makeText(getApplicationContext(),symbol+" "+id, Toast.LENGTH_SHORT).show();
+
                 }
             });
 
 
             //cursor.close();
-            db.close();
+            //db.close();
         }catch(SQLiteException e){
             e.printStackTrace();
         }
@@ -209,7 +266,7 @@ public class MainActivity extends AppCompatActivity {
 
         SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
         int time = pref.getInt("AUTO_TIME",2);
-        Log.v("TIMEOUT",Integer.toString(time));
+
 
         //t!=null if this is not the first call,if not first call then timeout value has changed,so cancel previous task
         if(t!=null) {
@@ -240,14 +297,12 @@ public class MainActivity extends AppCompatActivity {
 
                 query = query.replaceAll("^\"|\"$", "");
                 urls.add(NetworkUtils.buildUrl(query));
-                //Log.v("SYMBOL",query);
+
             }
 
 
-            /*final URL queryurl = NetworkUtils.buildUrl(query);*/
-            //run task only if internet connection available
             if(isNetworkAvailable()) {
-                Log.v("NETWORK","Available");
+
                 new StockQueryTask().execute(urls);
             }
             else
@@ -263,7 +318,7 @@ public class MainActivity extends AppCompatActivity {
 
             }
             //cursor.close();
-            db.close();
+            //db.close();
 
         }catch(SQLiteException e) {
             e.printStackTrace();
@@ -322,7 +377,7 @@ public class MainActivity extends AppCompatActivity {
         int current = prefs.getInt("AUTO_TIME",2);
 
         AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(MainActivity.this);
-        alertDialogBuilder.setTitle("Select auto refresh interval(current value "+ Integer.toString(current)+")");
+        alertDialogBuilder.setTitle("Select auto refresh interval in minutes(current value : "+ Integer.toString(current)+")");
         alertDialogBuilder.setView(linearLayout);
         alertDialogBuilder
                 .setCancelable(false)
